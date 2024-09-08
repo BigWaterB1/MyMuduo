@@ -1,6 +1,11 @@
 !.h
 !.cc
 
+build/
+test
+test.cpp
+.VSCodeCounter/
+.vscode/
 # Prerequisites
 *.d
 
