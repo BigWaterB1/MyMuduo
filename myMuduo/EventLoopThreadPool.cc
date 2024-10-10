@@ -2,7 +2,7 @@
 #include "EventLoopThread.h"
 
 EventLoopThreadPool::EventLoopThreadPool(EventLoop* baseLoop, const std::string& nameArg)
-    : baseLoop_(nullptr),
+    : baseLoop_(baseLoop),
       name_(nameArg),
       started_(false),
       numThreads_(0),

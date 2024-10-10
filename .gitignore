@@ -6,6 +6,7 @@ test
 test.cpp
 .VSCodeCounter/
 .vscode/
+muduo/
 # Prerequisites
 *.d
 

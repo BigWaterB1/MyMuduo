@@ -6,7 +6,7 @@
 
 static int createNonblocking()
 {
-    int sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
+    int sockfd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_TCP);
     if( sockfd < 0 )
     {
         LOG_FATAL("%s:%s:%d listen socket create error:%d \n", __FILE__, __FUNCTION__, __LINE__, errno);
@@ -20,6 +20,7 @@ Acceptor::Acceptor(EventLoop* loop, const InetAddress& listenAddr, bool reusePor
     , acceptChannel_(loop, acceptSocket_.fd())
     , listenning_(false)
 {
+    LOG_INFO("Acceptor::ctor create nonblocking socket %d for listening", acceptSocket_.fd());
     acceptSocket_.setReuseAddr(true);
     acceptSocket_.setReusePort(reusePort);
     acceptSocket_.bindAddress(listenAddr);
@@ -36,14 +37,16 @@ void Acceptor::listen()
 {
     listenning_ = true;
     acceptSocket_.listen();
-    acceptChannel_.enableReading();
+    acceptChannel_.enableReading(); // 设置对读事件刚兴趣，并注册fd到mainloop的poller上
 }
 
-// listenfd有事件发生了，就是由新用户连接了
+// listenfd有读事件发生了，就是有新用户连接了
 void Acceptor::handleRead()
 {
+    LOG_INFO("Acceptor::handleRead");
     InetAddress peerAddr;
     int connfd = acceptSocket_.accept(&peerAddr);
+    LOG_INFO("newconnection: connfd:%d, peerAddr:%s", connfd, peerAddr.toIpPort().c_str());
     if( connfd >= 0 )
     {
         if( newConnectionCallback_ )

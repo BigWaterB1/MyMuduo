@@ -17,6 +17,7 @@ public:
     string toString() const;
     //get time of now
     static Timestamp now();//static修饰函数，可以直接调用，无需实例化对象
+    void swap(Timestamp &that) { std::swap(microSecondsSinceEpoch_, that.microSecondsSinceEpoch_); }
 private:
     int64_t microSecondsSinceEpoch_;
 };

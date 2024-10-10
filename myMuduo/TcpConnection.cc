@@ -35,9 +35,8 @@ TcpConnection::TcpConnection(EventLoop* loop,
     channel_->setErrorCallback(
         std::bind(&TcpConnection::handleError, this)
     );
-
+    socket_->setKeepAlive(true);
     LOG_INFO("TcpConnection::ctor[%s] at fd=%d\n", name_.c_str(), sockfd);
-     socket_->setKeepAlive(true);
 }
 
 TcpConnection::~TcpConnection()
@@ -52,11 +51,15 @@ void TcpConnection::handleRead(Timestamp receiveTime)
     ssize_t n = inputBuffer_.readFd(channel_->fd(), &savedErrno);
     if(n > 0)
     {
-        // 已建立连接的用户，有可读事件发生了，就调用用户传入的回调操作onMessage
+        LOG_INFO("n > 0 TcpConnection::handleRead");
+        // 这个是用户设置的
+        // 已建立连接的用户，成功读到了发送来的消息，就调用用户传入的回调操作onMessage
+        if(!messageCallback_) LOG_INFO("messageCallback_ is null");
         messageCallback_(shared_from_this(), &inputBuffer_, receiveTime);
     }
     else if(n == 0)
     {
+        LOG_INFO("n == 0 TcpConnection::handleRead handleClose()");
         handleClose();
     }
     else
@@ -103,16 +106,17 @@ void TcpConnection::handleWrite()
     }
 }
 
+// 连接断开事件的回调
 void TcpConnection::handleClose()
 {
     int state = state_;
-    LOG_INFO("fd=%d state=%d \n", channel_->fd(), state);
+    LOG_INFO("fd=%d state=%d", channel_->fd(), state);
     setState(kDisconncted);
     channel_->disableAll();
 
-    TcpConnectionPtr connPtr(shared_from_this());
-    connectionCallback_(connPtr);
-    closeCallback_(connPtr);
+    TcpConnectionPtr connPtr(shared_from_this()); // shared_ptr不能直接由this指针构造，需要用shared_from_this()
+    connectionCallback_(connPtr); // 执行用户设置的回调
+    closeCallback_(connPtr); //这个是由TcpServer设置的回调函数，等于调用TcpServer::removeConnection()
 }
 
 void TcpConnection::handleError()
@@ -131,6 +135,27 @@ void TcpConnection::handleError()
     LOG_ERROR("TcpConnection::handleError [%s] SO_ERROR=%d\n", name_.c_str(), err);
 }
 
+void TcpConnection::send(Buffer* buf)
+{
+    if(state_ == kConnected)
+    {
+        if(loop_->isInLoopThread())// 在当前的线程
+        {
+            sendInLoop(buf->peek(), buf->readableBytes());
+            buf->retrieveAll();
+        }
+        else
+        {
+            void (TcpConnection::*fp)(const std::string& message) = &TcpConnection::sendInLoop;
+            loop_->runInLoop(
+                std::bind(
+                    fp,
+                    this,
+                    buf->retrieveAllAsString()));
+        }
+    }
+}
+
 void TcpConnection::send(const std::string& buf)
 {
     if(state_ == kConnected)
@@ -141,16 +166,21 @@ void TcpConnection::send(const std::string& buf)
         }
         else
         {
+            void (TcpConnection::*fp)(const std::string& message) = &TcpConnection::sendInLoop;
             loop_->runInLoop(
                 std::bind(
-                    &TcpConnection::sendInLoop,
+                    fp,
                     this,
-                    buf.c_str(),
-                    buf.size()
+                    buf
                 )
             );
         }
     }
+}
+
+void TcpConnection::sendInLoop(const std::string& message)
+{
+    sendInLoop(message.c_str(), message.size());
 }
 
 /*
@@ -163,7 +193,7 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
     bool faultError = false;
 
     // 已经调用过shutdown
-    if(state_ == kConnected)
+    if(state_ == kDisconncted)
     {
         LOG_ERROR("disconnected, give up writing!\n");
     }
@@ -233,8 +263,9 @@ void TcpConnection::connectEstablished()
 
 void TcpConnection::connectDestroyed()
 {
-    if(state_ == kDisconncted)
+    if(state_ == kConnected) // 某些情况下，直接调用TcpConnection::connectDestroyed() 才会进来，channel正常断开事件发生则不会进来
     {
+        LOG_INFO("Uexpected! TcpConnection::connectDestroyed but state=%d\n", static_cast<int>(state_));
         setState(kDisconncted);
         channel_->disableAll(); // 从Poller中注销所有感兴趣事件
         closeCallback_(shared_from_this());

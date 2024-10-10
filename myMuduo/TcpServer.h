@@ -10,6 +10,7 @@
 #include "nocopyable.h"
 #include "EventLoopThreadPool.h"
 #include "Callbacks.h"
+#include "TcpConnection.h"
 
 #include <functional>
 #include <string>
@@ -46,6 +47,9 @@ public:
 
     // 开启服务器监听
     void start();
+
+    const std::string name() const { return name_; }
+    const std::string ipPort() const { return ipPort_; }
 
 private:
     void newConnection(int sockfd, const InetAddress& peerAddr);

@@ -26,7 +26,7 @@ EventLoopThread::~EventLoopThread()
 // 开启后不主动结束，析构时自动结束
 EventLoop* EventLoopThread::startLoop()
 {
-    //开启底层的新线程
+    //底层真正创建一个线程，并在线程里运行用threadFunc()函数传入的回调函数，也就是运行threadFunc()
     thread_.start();
     EventLoop* loop = nullptr;
 
@@ -42,10 +42,14 @@ EventLoop* EventLoopThread::startLoop()
     return loop;
 }
 
-// 由创建的thread运行
+// 新线程运行的函数
+// 1. 创建EventLoop对象
+// 2. 调用用户传入的callback函数，传入loop对象
+// 3. 进入事件循环，loop.loop() => Poller.poll()
+// 4. 如果EventLoop退出loop()循环了，说明结束了，loop_ = nullptr
 void EventLoopThread::threadFunc()
 {
-    EventLoop loop; // 创建一个独立的EventLoop，和上面的线程一一对应，one loop one thread
+    EventLoop loop; // 创建一个独立的EventLoop，和线程一一对应，one loop per thread
 
     if(callback_)
     {

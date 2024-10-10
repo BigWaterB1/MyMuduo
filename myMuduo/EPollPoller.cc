@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <strings.h>
 #include <unistd.h> // close()
+#include <assert.h>
 
 //channel未添加到epollpoller中，新创建的channel的index_是-1
 const int kNew = -1;
@@ -33,7 +34,7 @@ EPollPoller::~EPollPoller()
 void EPollPoller::updateChannel(Channel* channel)
 {
     const int index = channel->index();
-    LOG_INFO("func = %s =>fd=%d index=%d events=%d\n", __FUNCTION__, channel->fd(), index, channel->events());
+    LOG_INFO("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
     if(index == kNew || index == kDeleted)
     {
         if(index == kNew)
@@ -44,12 +45,13 @@ void EPollPoller::updateChannel(Channel* channel)
         channel->setIndex(kAdded);
         update(EPOLL_CTL_ADD, channel); // 添加到epoll中
     }
-    else//index == kadded
+    else//index == kadded == 1
     {
         int fd = channel->fd();
         //(void) fd;
         if(channel->isNoneEvent())
         {
+            LOG_INFO("func = %s =>fd=%d events=%d index=%d isNoneEvent", __FUNCTION__, channel->fd(), channel->events(), index);
             update(EPOLL_CTL_DEL, channel); // 删除
             channel->setIndex(kDeleted); // 标记为删除, 但还是储存在channels_中
         }
@@ -66,9 +68,10 @@ void EPollPoller::removeChannel(Channel* channel)
     int fd = channel->fd();
     int index = channel->index();
     channels_.erase(fd);
-    LOG_INFO("func = %s =>fd=%d index=%d events=%d\n", __FUNCTION__, channel->fd(), index, channel->events());
+    LOG_INFO("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
     if(index == kAdded)
     {
+        LOG_INFO("EPOLL_CTL_DEL 删除");
         update(EPOLL_CTL_DEL, channel); // 删除
     }
     channel->setIndex(kNew); 
@@ -84,7 +87,8 @@ void EPollPoller::update(int operation, Channel* channel)
     event.data.ptr = channel;//携带了fd
 
     int fd = channel->fd();
-    event.data.fd = fd;
+    LOG_INFO("EPollPoller::update fd:%d events:%d operation:%d channel:%p event.data.ptr:%p\n", fd, channel->events(), operation, channel, static_cast<Channel*>(event.data.ptr));
+    //event.data.fd = fd; // 会出现覆盖问题
     if(::epoll_ctl(epollfd_, operation, fd, &event) < 0)
     {
         //出错处理
@@ -102,7 +106,7 @@ void EPollPoller::update(int operation, Channel* channel)
 //EventLoop通过返回的activechannels知道哪些channel是活跃的
 Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
 {
-    LOG_INFO("func=%s => fd total count:%lu\n", __FUNCTION__, channels_.size());
+    LOG_DEBUG("func=%s => fd total count:%lu\n", __FUNCTION__, channels_.size());
 
     //poll函数的主要功能实现
     //events_接收epoll_wait的返回值，保存了活跃的channel的事件
@@ -112,11 +116,11 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
                                  timeoutMs);
     int savedErrno = errno;
     Timestamp now(Timestamp::now());//默认拷贝构造
-
     if(numEvents > 0)
     {
-        LOG_INFO("func=%s => epoll_wait numEvents:%d\n", __FUNCTION__, numEvents);
+        LOG_INFO("func= %s => epoll_wait return numEvents:%d", __FUNCTION__, numEvents);
         fillActiveChannels(numEvents, activeChannels);
+        LOG_DEBUG("fillActiveChannels done");
         if(numEvents == events_.size())
         {
             events_.resize(events_.size() * 2);
@@ -139,10 +143,13 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
 
 void EPollPoller::fillActiveChannels(int numEvents, ChannelList* activechannels) const
 {
+    LOG_DEBUG("fillActiveChannels numEvents:%u events_.size():%ld\n", numEvents, events_.size());
+    assert(static_cast<size_t>(numEvents) <= events_.size());
     for(int i = 0; i < numEvents; ++i)
-    {
+    {   
         Channel* channel = static_cast<Channel*>(events_[i].data.ptr);
         channel->set_revents(events_[i].events);
         activechannels->push_back(channel);
     }
+    LOG_DEBUG("fillActiveChannels done");
 }

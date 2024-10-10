@@ -14,9 +14,9 @@ Socket::~Socket()
 
 void Socket::bindAddress(const InetAddress& addr)
 {
-    if( 0 != ::bind(sockfd_, (sockaddr*)addr.getSockAddr(), sizeof(sockaddr_in)));
+    if( 0 != ::bind(sockfd_, (sockaddr*)addr.getSockAddr(), sizeof(sockaddr_in)))
     {
-        LOG_FATAL("bind sockfd:%d failed", sockfd_);
+        LOG_FATAL("bind sockfd:%d failed reason:%d", sockfd_, errno);
     }
 }
 
@@ -31,9 +31,9 @@ void Socket::listen()
 int Socket::accept(InetAddress* peeraddr)
 {
     sockaddr_in addr;
-    socklen_t len;
+    socklen_t len = sizeof addr;
     bzero(&addr, sizeof addr);
-    int connfd = ::accept(sockfd_, (sockaddr*)&addr, &len);
+    int connfd = ::accept4(sockfd_, (sockaddr*)&addr, &len, SOCK_NONBLOCK|SOCK_CLOEXEC);
     if(connfd >= 0)
     {
         peeraddr->setSockAddr(addr);

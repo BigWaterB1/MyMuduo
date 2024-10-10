@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <string.h>
 
 //buffer 模型
 /*
@@ -43,6 +45,50 @@ public:
         return begin() + readIndex_;
     }
 
+    // for debug
+    std::string toString() const
+    {
+        return std::string(peek(), static_cast<int>(readableBytes()));
+    }
+
+    /*接下来的用于http 数据解析
+     * CRLF意为回车换行
+     * 回车(CR，ASCII码为13, \\r) 换行(LF, ASCII码为10, \\n)
+    */ 
+
+    const char *findCRLF() const
+    {
+        /** 可以改成 memmem 函数
+         * void *memmem(const void *haystack, size_t haystacklen,
+         *              const void *needle, size_t needlelen);
+         * 功能 : 在一块内存中寻找匹配另一块内存的内容的第一个位置
+         * 返回值 : 返回该位置的指针，如找不到，返回空指针。
+         */
+        const char *crlf = std::search(peek(), beginWrite(), kCRLF, kCRLF + 2);
+        return crlf == beginWrite() ? NULL : crlf;
+    }
+
+    const char *findCRLF(const char *start) const
+    {
+        // FIXME: replace with memmem()?
+        const char *crlf = std::search(start, beginWrite(), kCRLF, kCRLF + 2);
+        return crlf == beginWrite() ? NULL : crlf;
+    }
+
+    const char *findEOL() const
+    {
+        const void *eol = memchr(peek(), '\n', readableBytes());
+        return static_cast<const char *>(eol);
+    }
+
+    const char *findEOL(const char *start) const
+    {
+        const void *eol = memchr(start, '\n', beginWrite() - start);
+        return static_cast<const char *>(eol);
+    }
+    /* 以上为http 解析函数 */
+
+    // 恢复
     void retrieve(size_t len) 
     {
         if(len < readableBytes()) // 没有读完数据
@@ -53,6 +99,11 @@ public:
         {
             retrieveAll();
         }
+    }
+
+    void retrieveUntil(const char *end)
+    {
+        retrieve(end - peek());
     }
 
     void retrieveAll()
@@ -79,6 +130,12 @@ public:
         {
             makeSpace(len);
         }
+    }
+
+    // 可以接收string 和 const char* ， 自动给出长度
+    void append(const std::string& str)
+    {
+        append(str.data(), str.size());
     }
 
     void append(const char* data, size_t len)
@@ -137,6 +194,8 @@ private:
     std::vector<char> buffer_;
     size_t readIndex_;
     size_t writeIndex_;
+
+    static const char kCRLF[];
 };
 
 #endif

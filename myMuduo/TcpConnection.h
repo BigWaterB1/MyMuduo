@@ -38,8 +38,10 @@ public:
     const InetAddress& peerAddress() const { return peerAddr_; }
 
     bool connected() const { return state_ == kConnected; }
+    bool disconnected() const { return state_ == kDisconncted; }
 
     //void send(const void* data, size_t len);
+    void send(Buffer* buf);
     void send(const std::string& buf);
     void shutdown();
 
@@ -77,10 +79,13 @@ private:
     void handleClose();
     void handleError();
 
+    void sendInLoop(const std::string& message);
     void sendInLoop(const void* data, size_t len);
     void shutdownInLoop();
     
+    // 会由TcpServer在新连接到来的时候，获得一个EventLoop，然后告诉TcpConnection
     EventLoop* loop_; // 这里不是baseloop, 因为TcpConnection是baseloop管理的
+
     const std::string name_;
     std::atomic<int> state_;
     bool reading_;

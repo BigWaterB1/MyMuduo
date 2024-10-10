@@ -25,6 +25,7 @@ TcpServer::TcpServer(EventLoop* loop,
         , connectioncallback_()
         , messagecallback_()
         , nextConnId_(1)
+        , started_(0)
 {
     // 给acceptor设置新连接发生的回调函数
     acceptor_->setNewConnectionCallback(std::bind(&TcpServer::newConnection, this,
@@ -62,17 +63,20 @@ void TcpServer::start()
 // 新用户连接，给acceptor_设置新用户连接发生时的回调函数
 void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
 {
-    // 轮询获得一个事件循环loop
-    EventLoop* loop = threadPool_->getNextLoop();
+    // 轮询获得的一个事件循环loop，如果没有设置线程数，那么就是mainloop
+    EventLoop* ioloop = threadPool_->getNextLoop();
+    LOG_DEBUG("TcpServer::newConnection ioLoop: %p", ioloop);
+
+    // 获取连接名字connName
     char buf[64] = {0};
     snprintf(buf, sizeof buf, "-%s#%d", ipPort_.c_str(), nextConnId_); // 名称
     ++nextConnId_; // 不涉及线程安全，只有一个线程在处理
     std::string connName = name_ + buf;
 
     LOG_INFO("TcpSever::newConnection [%s] - new connection [%s] from %s",
-         name_.c_str(),connName.c_str(), peerAddr.toIpPort().c_str());\
+         name_.c_str(), connName.c_str(), peerAddr.toIpPort().c_str());\
     
-    // 通过
+    // 通过getsockname获取本地地址 ip+端口
     sockaddr_in localAddr;
     ::bzero(&localAddr, sizeof localAddr);
     socklen_t addrlen = sizeof localAddr;
@@ -83,7 +87,7 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
     InetAddress local_Addr(localAddr);
     
     TcpConnectionPtr conn( new TcpConnection(
-                            loop_,
+                            ioloop,
                             connName,
                             sockfd,
                             local_Addr,
@@ -103,14 +107,16 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
     );
 
     // 
-    loop->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));
+    ioloop->runInLoop(std::bind(&TcpConnection::connectEstablished, conn));// conn就是this
 }
 
 void TcpServer::removeConnection(const TcpConnectionPtr& conn)
 {
+    // 到mainloop去执行，因为这个会由TcpConnection连接断开时触发调用
     loop_->runInLoop(std::bind(&TcpServer::removeConnectionInLoop, this, conn));
 }
 
+// 给TcpConnection设置 最终会运行的连接断开时的回调函数
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn)
 {
     LOG_INFO("TcpServer::removeConnectionInLoop [%s] - connection [%s]",

@@ -57,7 +57,7 @@ void Channel::handleEvent(Timestamp receiveTime)
   if(tied_)
   {
     guard = tie_.lock();//提升为强智能指针
-    if(guard)//提升成功
+    if(guard)//提升成功，说明TcpConnection对象还存在
     {
       handleEventWithGuard(receiveTime);
     }
@@ -68,15 +68,17 @@ void Channel::handleEvent(Timestamp receiveTime)
   }
 }
 
-//根据poller通知的channel发声的具体事件，由channel负责调用具体的回调函数
-//包括读事件、写事件、关闭事件、错误事件
+// 根据poller通知的channel发生的具体事件，由channel负责调用具体的回调函数
+// revents_是poller给channel设置好的
+// 包括读事件、写事件、关闭事件、错误事件
 void Channel::handleEventWithGuard(Timestamp receiveTime)
 {
-  LOG_INFO("Channel handle event:%d\n", revents_);
-  if(revents_ & EPOLLHUP && !(revents_ & EPOLLIN))
+  LOG_INFO("Channel handle event:%d", revents_);
+  if((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN))
   {
     if(closeCallback_)
     {
+      LOG_INFO("Channel::closeCallback_");
       closeCallback_();
     }
   }
@@ -85,14 +87,17 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if(errorCallback_)
     {
+      LOG_INFO("Channel::errorCallback_");
       errorCallback_();
     }
   }
 
-  if(revents_ & (EPOLLIN | EPOLLPRI))
+  // 读事件
+  if(revents_ & (EPOLLIN | EPOLLPRI | EPOLLHUP))
   {
     if(readCallback_)
     {
+      LOG_INFO("Channel::readCallback_");
       readCallback_(receiveTime);
     }
   }
@@ -101,6 +106,7 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if(writeCallback_)
     {
+      LOG_INFO("Channel::writeCallback_");
       writeCallback_(); 
     }
   }
