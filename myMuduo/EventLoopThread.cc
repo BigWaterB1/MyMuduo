@@ -10,7 +10,6 @@ EventLoopThread::EventLoopThread(const ThreadInitCallback& cb,
       cond_(),
       callback_(cb)
 {
-    std::cout << "EventLoopThread::EventLoopThread()" << std::endl;
 }
 
 EventLoopThread::~EventLoopThread()

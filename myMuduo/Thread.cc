@@ -15,7 +15,6 @@ Thread::Thread(ThreadFunc func, const std::string& name)
       name_(name)
 {
     setDeafaultName();
-    std::cout << "Thread::Thread()" << std::endl;
 }
 
 Thread::~Thread()

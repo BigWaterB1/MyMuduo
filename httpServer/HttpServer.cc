@@ -35,13 +35,13 @@ void HttpServer::onMessage(const TcpConnectionPtr& conn,
                    Timestamp receiveTime)
 {
     //HttpContext *context = static_cast<HttpContext>(conn->getMutableContext());
-    LOG_INFO("HttpServer::onMessage");
+    LOG_DEBUG("HttpServer::onMessage");
     HttpContext* context = contexts_[conn->name()];
 
     if (!context->parseRequest(buf, receiveTime))
     {
-        LOG_INFO("HttpServer::onMessage !context->parseRequest(buf, receiveTime)");
-        LOG_INFO("HTTP/1.1 400 Bad Request\r\n\r\n");
+        LOG_DEBUG("HttpServer::onMessage !context->parseRequest(buf, receiveTime)");
+        LOG_DEBUG("HTTP/1.1 400 Bad Request\r\n\r\n");
         conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
         conn->shutdown();
     }
@@ -49,7 +49,7 @@ void HttpServer::onMessage(const TcpConnectionPtr& conn,
     // 已经收到完整的请求
     if (context->gotAll())
     {
-        LOG_INFO("HttpServer::onMessage context->gotAll():%d", (int)context->gotAll());
+        LOG_DEBUG("HttpServer::onMessage context->gotAll():%d", (int)context->gotAll());
         onRequest(conn, context->request());
         context->reset();
     }
@@ -57,20 +57,15 @@ void HttpServer::onMessage(const TcpConnectionPtr& conn,
 
 void HttpServer::onRequest(const TcpConnectionPtr& conn, const HttpRequest& request)
 {
-    LOG_INFO("HttpServer::onRequest()");
+    LOG_DEBUG("HttpServer::onRequest()");
     const string &connection = request.getHeader("Connection");
     bool close = connection == "close" ||
                  (request.getVersion() == HttpRequest::kHttp10 && connection != "Keep-Alive");
     HttpResponse response(close);
     HttpCallback_(request, &response);
     Buffer buf;
-    //std::cout << "appendToBuffer()" << std::endl;
     response.appendToBuffer(&buf);
-    //std::cout << "buffer:" << std::endl;
-    std::cout << buf.toString() << std::endl;
     conn->send(&buf);
-    //conn->send("yes");
-    std::cout << "conn->send(buf.peek());" << std::endl;
     if (response.isCloseConnection())
     {
         conn->shutdown();

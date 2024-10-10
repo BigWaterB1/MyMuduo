@@ -9,9 +9,9 @@ char favicon[555] = {
 
 void onRequest(const HttpRequest& req, HttpResponse* resp)
 {
-    bool benchmark = false;
+    bool benchmark = true;
     //std::cout << "Headers " << req.methodString() << " " << req.path() << std::endl;
-    std::cout << "userSetHttpCallback:onRequest()" << std::endl;
+    //std::cout << "userSetHttpCallback:onRequest()" << std::endl;
     if (!benchmark)
     {
         const std::map<string, string>& headers = req.headers();
@@ -54,11 +54,11 @@ void onRequest(const HttpRequest& req, HttpResponse* resp)
         resp->setStatusMessage("Not Found");
         resp->setCloseConnection(true);
     }
-    std::cout << "End of userSetHttpCallback:onRequest()" << std::endl;
+    //std::cout << "End of userSetHttpCallback:onRequest()" << std::endl;
 }
 
 int main() {
-    int numThreads = 0;
+    int numThreads = 2;
     EventLoop loop;
     InetAddress addr(8020);
     HttpServer server(&loop, addr, "HttpServer");

@@ -74,7 +74,7 @@ void TcpServer::newConnection(int sockfd, const InetAddress& peerAddr)
     std::string connName = name_ + buf;
 
     LOG_INFO("TcpSever::newConnection [%s] - new connection [%s] from %s",
-         name_.c_str(), connName.c_str(), peerAddr.toIpPort().c_str());\
+         name_.c_str(), connName.c_str(), peerAddr.toIpPort().c_str()); // LOG_INFO
     
     // 通过getsockname获取本地地址 ip+端口
     sockaddr_in localAddr;
@@ -120,7 +120,7 @@ void TcpServer::removeConnection(const TcpConnectionPtr& conn)
 void TcpServer::removeConnectionInLoop(const TcpConnectionPtr& conn)
 {
     LOG_INFO("TcpServer::removeConnectionInLoop [%s] - connection [%s]",
-         name_.c_str(), conn->name().c_str());
+         name_.c_str(), conn->name().c_str()); // LOG_INFO
 
     connections_.erase(conn->name());
     EventLoop* ioLoop = conn->getLoop();

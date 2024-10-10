@@ -36,13 +36,13 @@ TcpConnection::TcpConnection(EventLoop* loop,
         std::bind(&TcpConnection::handleError, this)
     );
     socket_->setKeepAlive(true);
-    LOG_INFO("TcpConnection::ctor[%s] at fd=%d\n", name_.c_str(), sockfd);
+    LOG_DEBUG("TcpConnection::ctor[%s] at fd=%d\n", name_.c_str(), sockfd);
 }
 
 TcpConnection::~TcpConnection()
 {
     int state = state_;
-    LOG_INFO("TcpConnection::dtor[%s] at fd=%d state=%d\n", name_.c_str(), channel_->fd(), state);
+    LOG_DEBUG("TcpConnection::dtor[%s] at fd=%d state=%d\n", name_.c_str(), channel_->fd(), state);
 }
 
 void TcpConnection::handleRead(Timestamp receiveTime)
@@ -51,7 +51,7 @@ void TcpConnection::handleRead(Timestamp receiveTime)
     ssize_t n = inputBuffer_.readFd(channel_->fd(), &savedErrno);
     if(n > 0)
     {
-        LOG_INFO("n > 0 TcpConnection::handleRead");
+        LOG_DEBUG("n > 0 TcpConnection::handleRead");
         // 这个是用户设置的
         // 已建立连接的用户，成功读到了发送来的消息，就调用用户传入的回调操作onMessage
         if(!messageCallback_) LOG_INFO("messageCallback_ is null");
@@ -59,7 +59,7 @@ void TcpConnection::handleRead(Timestamp receiveTime)
     }
     else if(n == 0)
     {
-        LOG_INFO("n == 0 TcpConnection::handleRead handleClose()");
+        LOG_DEBUG("n == 0 TcpConnection::handleRead handleClose()");
         handleClose();
     }
     else
@@ -74,7 +74,7 @@ void TcpConnection::handleWrite()
 {
     if(channel_->isWriting())
     {
-        LOG_INFO("TcpConnection::handleWrite [%s] is writing\n", name_.c_str());
+        LOG_DEBUG("TcpConnection::handleWrite [%s] is writing\n", name_.c_str());
         int savedErrno = 0;
         ssize_t n = outputBuffer_.writeFd(channel_->fd(), &savedErrno);
         if(n > 0)
@@ -110,7 +110,7 @@ void TcpConnection::handleWrite()
 void TcpConnection::handleClose()
 {
     int state = state_;
-    LOG_INFO("fd=%d state=%d", channel_->fd(), state);
+    LOG_DEBUG("fd=%d state=%d", channel_->fd(), state);
     setState(kDisconncted);
     channel_->disableAll();
 

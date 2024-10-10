@@ -34,7 +34,7 @@ EPollPoller::~EPollPoller()
 void EPollPoller::updateChannel(Channel* channel)
 {
     const int index = channel->index();
-    LOG_INFO("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
+    LOG_DEBUG("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
     if(index == kNew || index == kDeleted)
     {
         if(index == kNew)
@@ -51,7 +51,7 @@ void EPollPoller::updateChannel(Channel* channel)
         //(void) fd;
         if(channel->isNoneEvent())
         {
-            LOG_INFO("func = %s =>fd=%d events=%d index=%d isNoneEvent", __FUNCTION__, channel->fd(), channel->events(), index);
+            LOG_DEBUG("func = %s =>fd=%d events=%d index=%d isNoneEvent", __FUNCTION__, channel->fd(), channel->events(), index);
             update(EPOLL_CTL_DEL, channel); // 删除
             channel->setIndex(kDeleted); // 标记为删除, 但还是储存在channels_中
         }
@@ -68,10 +68,10 @@ void EPollPoller::removeChannel(Channel* channel)
     int fd = channel->fd();
     int index = channel->index();
     channels_.erase(fd);
-    LOG_INFO("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
+    LOG_DEBUG("func = %s =>fd=%d events=%d index=%d \n", __FUNCTION__, channel->fd(), channel->events(), index);
     if(index == kAdded)
     {
-        LOG_INFO("EPOLL_CTL_DEL 删除");
+        LOG_DEBUG("EPOLL_CTL_DEL 删除");
         update(EPOLL_CTL_DEL, channel); // 删除
     }
     channel->setIndex(kNew); 
@@ -87,7 +87,7 @@ void EPollPoller::update(int operation, Channel* channel)
     event.data.ptr = channel;//携带了fd
 
     int fd = channel->fd();
-    LOG_INFO("EPollPoller::update fd:%d events:%d operation:%d channel:%p event.data.ptr:%p\n", fd, channel->events(), operation, channel, static_cast<Channel*>(event.data.ptr));
+    LOG_DEBUG("EPollPoller::update fd:%d events:%d operation:%d channel:%p event.data.ptr:%p\n", fd, channel->events(), operation, channel, static_cast<Channel*>(event.data.ptr));
     //event.data.fd = fd; // 会出现覆盖问题
     if(::epoll_ctl(epollfd_, operation, fd, &event) < 0)
     {
@@ -118,7 +118,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
     Timestamp now(Timestamp::now());//默认拷贝构造
     if(numEvents > 0)
     {
-        LOG_INFO("func= %s => epoll_wait return numEvents:%d", __FUNCTION__, numEvents);
+        LOG_DEBUG("func= %s => epoll_wait return numEvents:%d", __FUNCTION__, numEvents);
         fillActiveChannels(numEvents, activeChannels);
         LOG_DEBUG("fillActiveChannels done");
         if(numEvents == events_.size())
@@ -128,7 +128,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
     }
     else if(numEvents == 0)
     {
-        LOG_INFO("func=%s => epoll_wait timeout\n", __FUNCTION__);
+        LOG_DEBUG("func=%s => epoll_wait timeout\n", __FUNCTION__);
     }
     else
     {

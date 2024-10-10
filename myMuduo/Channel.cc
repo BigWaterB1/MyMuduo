@@ -73,12 +73,12 @@ void Channel::handleEvent(Timestamp receiveTime)
 // 包括读事件、写事件、关闭事件、错误事件
 void Channel::handleEventWithGuard(Timestamp receiveTime)
 {
-  LOG_INFO("Channel handle event:%d", revents_);
+  LOG_DEBUG("Channel handle event:%d", revents_);
   if((revents_ & EPOLLHUP) && !(revents_ & EPOLLIN))
   {
     if(closeCallback_)
     {
-      LOG_INFO("Channel::closeCallback_");
+      LOG_DEBUG("Channel::closeCallback_");
       closeCallback_();
     }
   }
@@ -87,7 +87,7 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if(errorCallback_)
     {
-      LOG_INFO("Channel::errorCallback_");
+      LOG_DEBUG("Channel::errorCallback_");
       errorCallback_();
     }
   }
@@ -97,7 +97,7 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if(readCallback_)
     {
-      LOG_INFO("Channel::readCallback_");
+      LOG_DEBUG("Channel::readCallback_");
       readCallback_(receiveTime);
     }
   }
@@ -106,7 +106,7 @@ void Channel::handleEventWithGuard(Timestamp receiveTime)
   {
     if(writeCallback_)
     {
-      LOG_INFO("Channel::writeCallback_");
+      LOG_DEBUG("Channel::writeCallback_");
       writeCallback_(); 
     }
   }
